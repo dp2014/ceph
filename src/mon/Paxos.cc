@@ -805,7 +805,7 @@ void Paxos::accept_timeout()
 
 struct C_Committed : public Context {
   Paxos *paxos;
-  C_Committed(Paxos *p) : paxos(p) {}
+  explicit C_Committed(Paxos *p) : paxos(p) {}
   void finish(int r) {
     assert(r >= 0);
     Mutex::Locker l(paxos->mon->lock);
