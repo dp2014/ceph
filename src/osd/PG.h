@@ -31,7 +31,7 @@
 #include "include/types.h"
 #include "include/stringify.h"
 #include "osd_types.h"
-#include "include/buffer.h"
+#include "include/buffer_fwd.h"
 #include "include/xlist.h"
 #include "include/atomic.h"
 #include "SnapMapper.h"
@@ -206,7 +206,6 @@ protected:
   Mutex map_lock;
   list<OpRequestRef> waiting_for_map;
   OSDMapRef osdmap_ref;
-  OSDMapRef last_persisted_osdmap_ref;
   PGPool pool;
 
   void queue_op(OpRequestRef& op);
@@ -286,9 +285,10 @@ public:
   // pg state
   pg_info_t        info;
   __u8 info_struct_v;
-  // v8 was pgmeta, first appeared in hammer.
   static const __u8 cur_struct_v = 8;
-  static const __u8 compat_struct_v = 8;
+  // v7 was SnapMapper addition in 86658392516d5175b2756659ef7ffaaf95b0f8ad
+  // (first appeared in cuttlefish).
+  static const __u8 compat_struct_v = 7;
   bool must_upgrade() {
     return info_struct_v < cur_struct_v;
   }
@@ -764,6 +764,9 @@ protected:
 			     waiting_for_degraded_object,
 			     waiting_for_blocked_object;
 
+  set<
+    hobject_t,
+    hobject_t::BitwiseComparator> objects_blocked_on_cache_full;
   map<
     hobject_t,
     snapid_t,
@@ -872,7 +875,8 @@ public:
 			pg_missing_t& omissing, pg_shard_t from);
   void proc_master_log(ObjectStore::Transaction& t, pg_info_t &oinfo, pg_log_t &olog,
 		       pg_missing_t& omissing, pg_shard_t from);
-  bool proc_replica_info(pg_shard_t from, const pg_info_t &info);
+  bool proc_replica_info(
+    pg_shard_t from, const pg_info_t &info, epoch_t send_epoch);
 
 
   struct LogEntryTrimmer : public ObjectModDesc::Visitor {
@@ -1067,6 +1071,7 @@ public:
       active(false), queue_snap_trim(false),
       waiting_on(0), shallow_errors(0), deep_errors(0), fixed(0),
       must_scrub(false), must_deep_scrub(false), must_repair(false),
+      auto_repair(false),
       num_digest_updates_pending(0),
       state(INACTIVE),
       deep(false),
@@ -1094,6 +1099,9 @@ public:
 
     // flags to indicate explicitly requested scrubs (by admin)
     bool must_scrub, must_deep_scrub, must_repair;
+
+    // this flag indicates whether we would like to do auto-repair of the PG or not
+    bool auto_repair;
 
     // Maps from objects with errors to missing/inconsistent peers
     map<hobject_t, set<pg_shard_t>, hobject_t::BitwiseComparator> missing;
@@ -1183,6 +1191,7 @@ public:
       must_scrub = false;
       must_deep_scrub = false;
       must_repair = false;
+      auto_repair = false;
 
       state = PG::Scrubber::INACTIVE;
       start = hobject_t();
@@ -1213,7 +1222,10 @@ public:
   void scrub(epoch_t queued, ThreadPool::TPHandle &handle);
   void chunky_scrub(ThreadPool::TPHandle &handle);
   void scrub_compare_maps();
-  void scrub_process_inconsistent();
+  /**
+   * return true if any inconsistency/missing is repaired, false otherwise
+   */
+  bool scrub_process_inconsistent();
   void scrub_finish();
   void scrub_clear_state();
   void _scan_snaps(ScrubMap &map);
@@ -2042,6 +2054,8 @@ public:
   uint64_t upacting_features;
 
   bool do_sort_bitwise;
+  epoch_t last_epoch;
+  epoch_t last_persisted_epoch;
 
  public:
   const spg_t&      get_pgid() const { return pg_id; }
@@ -2118,6 +2132,7 @@ public:
 
   int get_state() const { return state; }
   bool       is_active() const { return state_test(PG_STATE_ACTIVE); }
+  bool       is_activating() const { return state_test(PG_STATE_ACTIVATING); }
   bool       is_peering() const { return state_test(PG_STATE_PEERING); }
   bool       is_down() const { return state_test(PG_STATE_DOWN); }
   bool       is_replay() const { return state_test(PG_STATE_REPLAY); }
@@ -2159,7 +2174,8 @@ public:
     pg_info_t &info, coll_t coll,
     map<epoch_t,pg_interval_t> &past_intervals,
     ghobject_t &pgmeta_oid,
-    bool dirty_big_info);
+    bool dirty_big_info,
+    bool dirty_epoch);
   void write_if_dirty(ObjectStore::Transaction& t);
 
   eversion_t get_next_version() const {

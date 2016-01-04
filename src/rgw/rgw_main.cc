@@ -32,6 +32,7 @@
 #include "common/Throttle.h"
 #include "common/QueueRing.h"
 #include "common/safe_io.h"
+#include "include/compat.h"
 #include "include/str_list.h"
 #include "rgw_common.h"
 #include "rgw_rados.h"
@@ -918,12 +919,14 @@ public:
 
     pprocess = pp;
 
-    string uid;
-    conf->get_val("uid", "", &uid);
-    if (uid.empty()) {
+    string uid_str;
+    conf->get_val("uid", "", &uid_str);
+    if (uid_str.empty()) {
       derr << "ERROR: uid param must be specified for loadgen frontend" << dendl;
       return EINVAL;
     }
+
+    rgw_user uid(uid_str);
 
     RGWUserInfo user_info;
     int ret = rgw_get_user_info_by_uid(env.store, uid, user_info, NULL);
@@ -1045,7 +1048,7 @@ int main(int argc, const char **argv)
   check_curl();
 
   if (g_conf->daemonize) {
-    global_init_daemonize(g_ceph_context, 0);
+    global_init_daemonize(g_ceph_context);
   }
   Mutex mutex("main");
   SafeTimer init_timer(g_ceph_context, mutex);

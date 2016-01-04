@@ -71,13 +71,6 @@ target_link_libraries(test_rewrite_latency common
   ${TCMALLOC_LIBS}
   ${CMAKE_THREAD_LIBS_INIT} ${CRYPTO_LIBS} m ${EXTRALIBS})
 
-# streamtest
-add_executable(streamtest
-  streamtest.cc
-  $<TARGET_OBJECTS:heap_profiler_objs>
-  )
-target_link_libraries(streamtest os global ${BLKID_LIBRARIES} ${CMAKE_DL_LIBS} ${TCMALLOC_LIBS})
-
 # test_trans
 add_executable(test_trans
   test_trans.cc
@@ -346,6 +339,9 @@ add_dependencies(check osd_pool_create)
 add_test(NAME osd_copy_from COMMAND bash ${CMAKE_SOURCE_DIR}/src/test/osd/osd-copy-from.sh)
 add_dependencies(check osd_copy_from)
 
+add_test(NAME osd_mark_down COMMAND bash ${CMAKE_SOURCE_DIR}/src/test/osd/osd-markdown.sh)
+add_dependencies(check osd-markdown)
+
 add_test(NAME mon_handle_forward COMMAND bash ${CMAKE_SOURCE_DIR}/src/test/mon/mon-handle-forward.sh)
 add_dependencies(check mon_handle_forward)
 
@@ -369,6 +365,9 @@ add_dependencies(check rados_striper)
 
 add_test(NAME osd_bench COMMAND bash ${CMAKE_SOURCE_DIR}/src/test/osd/osd-bench.sh)
 add_dependencies(check osd_bench)
+
+add_test(NAME osd_reactivate COMMAND bash ${CMAKE_SOURCE_DIR}/src/test/osd/osd-reactivate.sh)
+add_dependencies(check osd_reactivate)
 
 add_test(NAME test_erasure_code COMMAND bash ${CMAKE_SOURCE_DIR}/src/test/erasure-code/test-erasure-code.sh)
 add_dependencies(check test_erasure_code)
@@ -531,6 +530,25 @@ add_dependencies(check unittest_sloppy_crc_map)
 target_link_libraries(unittest_sloppy_crc_map global
   ${BLKID_LIBRARIES} ${CMAKE_DL_LIBS} ${TCMALLOC_LIBS} ${UNITTEST_LIBS})
 set_target_properties(unittest_sloppy_crc_map
+  PROPERTIES COMPILE_FLAGS ${UNITTEST_CXX_FLAGS})
+
+# unittest_time
+set(unittest_time_srcs
+  common/test_time.cc
+  ${CMAKE_SOURCE_DIR}/src/common/ceph_time.cc
+  )
+add_executable(unittest_time
+  ${unittest_time_srcs}
+  $<TARGET_OBJECTS:heap_profiler_objs>
+  )
+target_link_libraries(unittest_time
+  global
+  ${BLKID_LIBRARIES}
+  ${CMAKE_DL_LIBS}
+  ${TCMALLOC_LIBS}
+  ${UNITTEST_LIBS}
+  )
+set_target_properties(unittest_time
   PROPERTIES COMPILE_FLAGS ${UNITTEST_CXX_FLAGS})
 
 # unittest_util
@@ -1281,6 +1299,19 @@ add_dependencies(check unittest_mds_authcap)
 target_link_libraries(unittest_mds_authcap mds global ${CMAKE_DL_LIBS}
   ${BLKID_LIBRARIES} ${TCMALLOC_LIBS} ${UNITTEST_LIBS})
 set_target_properties(unittest_mds_authcap PROPERTIES COMPILE_FLAGS
+  ${UNITTEST_CXX_FLAGS})
+
+# unittest_mds_sessionfilter
+add_executable(unittest_mds_sessionfilter EXCLUDE_FROM_ALL
+    mds/TestSessionFilter.cc
+  $<TARGET_OBJECTS:heap_profiler_objs>
+  $<TARGET_OBJECTS:common_util_obj>
+  )
+add_test(unittest_mds_sessionfilter unittest_mds_sessionfilter)
+add_dependencies(check unittest_mds_sessionfilter)
+target_link_libraries(unittest_mds_sessionfilter mds osdc common global
+  ${CMAKE_DL_LIBS} ${BLKID_LIBRARIES} ${TCMALLOC_LIBS} ${UNITTEST_LIBS})
+set_target_properties(unittest_mds_sessionfilter PROPERTIES COMPILE_FLAGS
   ${UNITTEST_CXX_FLAGS})
 
 # unittest_ipaddr

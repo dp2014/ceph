@@ -6,6 +6,9 @@
 /* fallocate(2) is supported */
 #cmakedefine CEPH_HAVE_FALLOCATE 
 
+/* mallinfo(3) is supported */
+#cmakedefine HAVE_MALLINFO
+
 /* posix_fadvise is supported */
 #cmakedefine HAVE_POSIX_FADVISE
 
@@ -173,6 +176,9 @@
 /* Define to 1 if you have the <utime.h> header file. */
 #cmakedefine HAVE_UTIME_H
 
+/* Define to 1 if strerror_r returns char *. */
+#cmakedefine STRERROR_R_CHAR_P 1
+
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #cmakedefine LT_OBJDIR
@@ -233,5 +239,14 @@
 #cmakedefine HAVE_GPERFTOOLS_HEAP_PROFILER_H
 #cmakedefine HAVE_GPERFTOOLS_MALLOC_EXTENSION_H
 #cmakedefine HAVE_GPERFTOOLS_PROFILER_H
+
+/* res_nquery is supported */
+#cmakedefine HAVE_RES_NQUERY
+
+/* res_query is thread safe */
+#cmakedefine HAVE_THREAD_SAFE_RES_QUERY
+
+/* Define if HAVE_REENTRANT_STRSIGNAL */
+#cmakedefine HAVE_REENTRANT_STRSIGNAL
 
 #endif /* CONFIG_H */

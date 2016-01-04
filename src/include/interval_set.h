@@ -164,12 +164,20 @@ class interval_set {
     return typename interval_set<T>::iterator(m.begin());
   }
 
+  typename interval_set<T>::iterator lower_bound(T start) {
+    return typename interval_set<T>::iterator(find_inc_m(start));
+  }
+
   typename interval_set<T>::iterator end() {
     return typename interval_set<T>::iterator(m.end());
   }
 
   typename interval_set<T>::const_iterator begin() const {
     return typename interval_set<T>::const_iterator(m.begin());
+  }
+
+  typename interval_set<T>::const_iterator lower_bound(T start) const {
+    return typename interval_set<T>::const_iterator(find_inc(start));
   }
 
   typename interval_set<T>::const_iterator end() const {
@@ -259,12 +267,16 @@ class interval_set {
     _size = 0;
   }
 
-  bool contains(T i) const {
+  bool contains(T i, T *pstart=0, T *plen=0) const {
     typename map<T,T>::const_iterator p = find_inc(i);
     if (p == m.end()) return false;
     if (p->first > i) return false;
     if (p->first+p->second <= i) return false;
     assert(p->first <= i && p->first+p->second > i);
+    if (pstart)
+      *pstart = p->first;
+    if (plen)
+      *plen = p->second;
     return true;
   }
   bool contains(T start, T len) const {
@@ -325,13 +337,17 @@ class interval_set {
     insert(val, 1);
   }
 
-  void insert(T start, T len) {
+  void insert(T start, T len, T *pstart=0, T *plen=0) {
     //cout << "insert " << start << "~" << len << endl;
     assert(len > 0);
     _size += len;
     typename map<T,T>::iterator p = find_adj_m(start);
     if (p == m.end()) {
       m[start] = len;                  // new interval
+      if (pstart)
+	*pstart = start;
+      if (plen)
+	*plen = len;
     } else {
       if (p->first < start) {
         
@@ -350,13 +366,25 @@ class interval_set {
           p->second += n->second;
           m.erase(n);
         }
+	if (pstart)
+	  *pstart = p->first;
+	if (plen)
+	  *plen = p->second;
       } else {
         if (start+len == p->first) {
           m[start] = len + p->second;  // append to front 
+	  if (pstart)
+	    *pstart = start;
+	  if (plen)
+	    *plen = len + p->second;
           m.erase(p);
         } else {
           assert(p->first > start+len);
           m[start] = len;              // new interval
+	  if (pstart)
+	    *pstart = start;
+	  if (plen)
+	    *plen = len;
         }
       }
     }

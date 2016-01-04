@@ -32,6 +32,7 @@ CHECK_FUNCTION_EXISTS(posix_fadvise HAVE_POSIX_FADVISE)
 CHECK_FUNCTION_EXISTS(posix_fallocate HAVE_POSIX_FALLOCATE)
 CHECK_FUNCTION_EXISTS(syncfs HAVE_SYS_SYNCFS) 
 CHECK_FUNCTION_EXISTS(sync_file_range HAVE_SYNC_FILE_RANGE)
+CHECK_FUNCTION_EXISTS(mallinfo HAVE_MALLINFO)
 CHECK_INCLUDE_FILES("arpa/inet.h" HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES("boost/random/discrete_distribution.hpp" HAVE_BOOST_RANDOM_DISCRETE_DISTRIBUTION)
 CHECK_INCLUDE_FILES("dirent.h" HAVE_DIRENT_H)
@@ -81,6 +82,14 @@ include(CheckSymbolExists)
 CHECK_SYMBOL_EXISTS(__u8 "sys/types.h;linux/types.h" HAVE___U8)
 CHECK_SYMBOL_EXISTS(__u64 "sys/types.h;linux/types.h" HAVE___U64)
 CHECK_SYMBOL_EXISTS(__s64 "sys/types.h;linux/types.h" HAVE___S64)
+
+CHECK_SYMBOL_EXISTS(res_nquery "resolv.h" HAVE_RES_NQUERY)
+
+include(CheckCXXSourceCompiles)
+CHECK_CXX_SOURCE_COMPILES("
+  #include <string.h>
+  int main() { char x = *strerror_r(0, &x, sizeof(x)); return 0; }
+  " STRERROR_R_CHAR_P)
 
 set(CEPH_MAN_DIR "share/man" CACHE STRING "Install location for man pages (relative to prefix).")
 
@@ -208,6 +217,16 @@ option(WITH_RADOSGW "Rados Gateway is enabled" ON)
 
 #option for CephFS
 option(WITH_CEPHFS "CephFS is enabled" ON)
+
+option(WITH_THREAD_SAFE_RES_QUERY "res_query is thread safe" OFF)
+if(WITH_THREAD_SAFE_RES_QUERY)
+    set(HAVE_THREAD_SAFE_RES_QUERY 1 CACHE INTERNAL "Thread safe res_query supported.")
+endif(WITH_THREAD_SAFE_RES_QUERY)
+
+option(WITH_REENTRANT_STRSIGNAL "strsignal is reentrant" OFF)
+if(WITH_REENTRANT_STRSIGNAL)
+    set(HAVE_REENTRANT_STRSIGNAL 1 CACHE INTERNAL "Reentrant strsignal is supported.")
+endif(WITH_REENTRANT_STRSIGNAL)
 
 # Now create a useable config.h
 configure_file(
